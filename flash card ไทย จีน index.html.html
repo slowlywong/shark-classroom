@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>鲨鱼的教室 🦈</title>
+    <style>
+        :root { --primary: #ff7675; --secondary: #fab1a0; --bg: #fff5f5; }
+        body { font-family: 'Sarabun', sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .container { width: 100%; max-width: 500px; text-align: center; display: flex; flex-direction: column; }
+        .audio-btn { background: var(--secondary); border: none; width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; color: white; margin: 10px auto; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .menu-box { margin-bottom: 10px; width: 100%; }
+        select { padding: 12px; border-radius: 12px; border: 2px solid var(--primary); font-size: 1rem; width: 100%; background: white; outline: none; }
+        .card-container { perspective: 1000px; width: 100%; height: 280px; cursor: pointer; margin: 10px auto; }
+        .card { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+        .card.is-flipped { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; box-shadow: 0 8px 20px rgba(0,0,0,0.05); border: 4px solid white; }
+        .card-front { background: white; color: #2d3436; }
+        .card-back { background: var(--primary); color: white; transform: rotateY(180deg); }
+        .thai-word { font-size: 3.2rem; font-weight: bold; color: var(--primary); margin: 0; }
+        #input-area { display:none; margin: 15px 0; }
+        input { padding: 12px; border-radius: 12px; border: 2px solid var(--primary); width: 70%; font-size: 1.2rem; text-align: center; outline: none; }
+        #trace-container { display:none; position: relative; width: 100%; max-width: 480px; height: 350px; margin: 15px auto; background: #fff; border: 3px dashed var(--primary); border-radius: 20px; touch-action: none; }
+        #trace-text { position: absolute; width: 100%; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 8rem; color: #f2f2f2; user-select: none; pointer-events: none; font-weight: bold; opacity: 0.8; letter-spacing: 5px; }
+        canvas { position: absolute; top:0; left:0; width: 100%; height: 100%; border-radius: 20px; }
+        .controls { display: flex; gap: 10px; width: 100%; margin-top: 5px; }
+        .controls button { flex: 1; padding: 15px; border: none; border-radius: 15px; background: white; color: var(--primary); font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #eee; font-size: 1rem; }
+        .btn-clear { background: #636e72; color: white; padding: 10px 20px; border-radius: 12px; border: none; margin-top: 10px; cursor: pointer; font-weight: bold; width: 100%; }
+        #progress { color: #b2bec3; margin-top: 15px; font-size: 0.85rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="color: var(--primary); margin: 5px 0 0 0;">鲨鱼的教室 🦈</h1>
+    <p style="color: #b2bec3; font-size: 0.9rem; margin-bottom: 5px;">Shāyú de jiàoshì</p>
+
+    <button class="audio-btn" onclick="speak(event)">🔊</button>
+
+    <div class="menu-box">
+        <select id="modeSelect" onchange="changeMode()">
+            <option value="flashcard">🎴 Flashcards</option>
+            <option value="dictation">✍️ Tracing Practice</option>
+            <option value="quiz">❓ Quiz Mode</option>
+        </select>
+    </div>
+
+    <div class="menu-box">
+        <select id="categorySelect" onchange="filterCategory()">
+            <option value="all">All Categories</option>
+            <option value="ความรัก">❤️ Love</option>
+            <option value="ทั่วไป">😊 General</option>
+            <option value="อาหาร">🍲 Food</option>
+        </select>
+    </div>
+
+    <div id="card-area" class="card-container" onclick="flipCard()">
+        <div class="card" id="card">
+            <div class="card-face card-front">
+                <h1 class="thai-word" id="th-word">Loading...</h1>
+                <p id="zh-read" style="color:#636e72; margin-top: 10px;">Reading...</p>
+            </div>
+            <div class="card-face card-back">
+                <div id="zh-mean" style="font-size: 2.2rem; font-weight:bold; margin-bottom:10px;">...</div>
+                <div id="ex-zh" style="font-size: 1rem; opacity: 0.9; line-height: 1.4;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="trace-container">
+        <div id="trace-text"></div>
+        <canvas id="paintCanvas"></canvas>
+    </div>
+
+    <div id="input-area">
+        <input type="text" id="userInput" placeholder="Translate to Thai...">
+        <button onclick="checkAnswer()" style="padding: 12px 20px; background:var(--primary); color:white; border:none; border-radius:12px; margin-left:5px; font-weight:bold;">Check</button>
+        <p id="feedback" style="font-weight:bold; margin-top:10px;"></p>
+    </div>
+
+    <div id="clear-area" style="display:none; margin-bottom: 10px;">
+        <button class="btn-clear" onclick="clearCanvas()">Clear Drawing</button>
+    </div>
+    
+    <div class="controls">
+        <button onclick="prevCard()">❮ Back</button>
+        <button onclick="nextCard()">Next ❯</button>
+    </div>
+
+    <p id="progress"></p>
+</div>
+
+<script>
+    const allVocab = [
+        {cat:"ความรัก", th:"ห่วงนะ", zr:"Hùang-Na", zm:"担心你", q_zh:"我很____你 (担心)", ex_zh:"很担心你，多休息"},
+        {cat:"ความรัก", th:"รักนะ", zr:"Rák-Na", zm:"爱你", q_zh:"我____คุณ (爱)", ex_zh:"ผมก็รักคุณ"},
+        {cat:"ความรัก", th:"คนดี", zr:"Kon-Dee", zm:"乖乖/宝贝", q_zh:"____，别哭了 (乖乖)", ex_zh:"快点睡吧 คนดี"},
+        {cat:"ความรัก", th:"แฟน", zr:"Faen", zm:"男朋友/女朋友", q_zh:"เขาเป็น____ของฉัน (对象)", ex_zh:"เขามีแฟนแล้ว"},
+        {cat:"ความรัก", th:"ดูแลตัวเองด้วย", zr:"Doo-Lae-Tua-Eng-Duay", zm:"照顾好自己", q_zh:"คุณต้อง____ (照顾自己)", ex_zh:"ดูแลตัวเองด้วยนะ"},
+        {cat:"ความรัก", th:"ฝันดี", zr:"Fǎn-Dee", zm:"晚安/好梦", q_zh:"____นะ (晚安)", ex_zh:"ฝันดีนะจ๊ะ"},
+        {cat:"ความรัก", th:"น่ารัก", zr:"Nâ-Rák", zm:"可爱", q_zh:"คุณ____มาก (可爱)", ex_zh:"เธอน่ารักมาก"},
+        {cat:"ความรัก", th:"โสด", zr:"Sòte", zm:"单身", q_zh:"ฉันยัง____ (单身)", ex_zh:"ยังโสดอยู่ครับ"},
+        {cat:"ความรัก", th:"อกหัก", zr:"Òk-Hàk", zm:"失恋", q_zh:"เขา____ (失恋)", ex_zh:"เพราะเขาอกหัก"},
+        {cat:"ความรัก", th:"ใจอ่อน", zr:"Jai-Òn", zm:"心软", q_zh:"อย่า____ (心软)", ex_zh:"ฉันแพ้คนใจอ่อน"},
+        {cat:"ความรัก", th:"แอบรัก", zr:"Aèb-Rák", zm:"暗恋", q_zh:"____คุณมานานแล้ว (暗恋)", ex_zh:"แอบรักเธออยู่ในใจ"},
+        {cat:"อาหาร", th:"ข้าวผัด", zr:"Kâo-Pàt", zm:"炒饭", q_zh:"เอา____หนึ่งที่ (炒饭)", ex_zh:"ข้าวผัดกุ้งอร่อย"},
+        {cat:"อาหาร", th:"เผ็ด", zr:"Pèt", zm:"辣", q_zh:"ฉันไม่กิน____ (辣)", ex_zh:"ส้มตำเผ็ดมาก"},
+        {cat:"อาหาร", th:"หวาน", zr:"Wǎan", zm:"甜", q_zh:"อันนี้____เกินไป (甜)", ex_zh:"ขนมหวานเกินไป"},
+        {cat:"อาหาร", th:"อร่อย", zr:"A-Ròi", zm:"好吃", q_zh:"อันนี้____มาก (好吃)", ex_zh:"อาหารอร่อยมาก"},
+        {cat:"อาหาร", th:"หิว", zr:"Hǐw", zm:"饿", q_zh:"ฉัน____แล้ว (饿)", ex_zh:"หิวข้าวหรือยัง?"},
+        {cat:"อาหาร", th:"น้ำเปล่า", zr:"Nám-Plào", zm:"白开水", q_zh:"ขอ____หน่อย (水)", ex_zh:"ขอน้ำเปล่าหนึ่งขวด"},
+        {cat:"อาหาร", th:"กุ้ง", zr:"Gûng", zm:"虾", q_zh:"เขาไม่กิน____ (虾)", ex_zh:"ต้มยำกุ้ง"},
+        {cat:"อาหาร", th:"ไก่", zr:"Gài", zm:"鸡", q_zh:"ข้าวหน้า____ (鸡)", ex_zh:"ข้าวมันไก่"},
+        {cat:"อาหาร", th:"ไข่ดาว", zr:"Kài-Dao", zm:"荷包蛋", q_zh:"เพิ่ม____ (荷包蛋)", ex_zh:"กะเพราไข่ดาว"},
+        {cat:"อาหาร", th:"ผลไม้", zr:"Pǒn-La-Máai", zm:"水果", q_zh:"กิน____เยอะๆ (水果)", ex_zh:"ชอบกินผลไม้ไทย"},
+        {cat:"ทั่วไป", th:"สวัสดี", zr:"Sa-Wàt-Dee", zm:"你好", q_zh:"____ครับ (你好)", ex_zh:"สวัสดีตอนเช้า"},
+        {cat:"ทั่วไป", th:"ขอบคุณ", zr:"Kòp-Koon", zm:"谢谢", q_zh:"____ครับ (谢谢)", ex_zh:"ขอบคุณมากครับ"},
+        {cat:"ทั่วไป", th:"ขอโทษ", zr:"Kǒr-Tôte", zm:"对不起", q_zh:"____ที่มาช้า (对不起)", ex_zh:"ขอโทษจริงๆ"},
+        {cat:"ทั่วไป", th:"ใช่", zr:"Châi", zm:"是/对", q_zh:"____ไหม? (对)", ex_zh:"ใช่แล้วครับ"},
+        {cat:"ทั่วไป", th:"ไม่ใช่", zr:"Mâi-Châi", zm:"ไม่ใช่", q_zh:"____ฉัน (不是)", ex_zh:"อันนี้ไม่ใช่ของฉัน"},
+        {cat:"ทั่วไป", th:"ไปไหน", zr:"Pai-Nǎi", zm:"去哪", q_zh:"จะ____? (去哪)", ex_zh:"พรุ่งนี้ไปไหน"},
+        {cat:"ทั่วไป", th:"ตลาด", zr:"Ta-Làat", zm:"市场", q_zh:"ไป____ (市场)", ex_zh:"ตลาดคนเดิน"},
+        {cat:"ทั่วไป", th:"บ้าน", zr:"Bâan", zm:"家", q_zh:"กลับ____ (家)", ex_zh:"อยู่บ้านคนเดียว"},
+        {cat:"ทั่วไป", th:"เพื่อน", zr:"Pêuan", zm:"朋友", q_zh:"เขาเป็น____ (朋友)", ex_zh:"เพื่อนสนิท"},
+        {cat:"ทั่วไป", th:"โรงเรียน", zr:"Rong-Rian", zm:"学校", q_zh:"ไป____ (学校)", ex_zh:"โรงเรียนปิดเทอม"},
+        {cat:"ทั่วไป", th:"แมว", zr:"Maew", zm:"猫", q_zh:"เลี้ยง____ (猫)", ex_zh:"ชอบเลี้ยงแมว"},
+        {cat:"ทั่วไป", th:"หมา", zr:"Mǎa", zm:"狗", q_zh:"____เห่า (狗)", ex_zh:"หมาเห่าเสียงดัง"},
+        {cat:"ทั่วไป", th:"เงิน", zr:"Ngern", zm:"钱", q_zh:"ไม่มี____ (钱)", ex_zh:"กดเงินที่ตู้ ATM"},
+        {cat:"ทั่วไป", th:"ร้อน", zr:"Rón", zm:"热", q_zh:"อากาศ____ (热)", ex_zh:"วันนี้ร้อนจัง"},
+        {cat:"ทั่วไป", th:"หนาว", zr:"Nǎao", zm:"冷", q_zh:"ฉัน____ (冷)", ex_zh:"อากาศเริ่มหนาว"},
+        {cat:"ทั่วไป", th:"ฝนตก", zr:"Fǒn-Tòk", zm:"下雨", q_zh:"ข้างนอก____ (下雨)", ex_zh:"ฝนตกหนักมาก"},
+        {cat:"ทั่วไป", th:"สวย", zr:"Sǔay", zm:"漂亮", q_zh:"คุณ____มาก (漂亮)", ex_zh:"เธอสวยที่สุด"},
+        {cat:"ทั่วไป", th:"หล่อ", zr:"Lòr", zm:"帅", q_zh:"เขา____มาก (帅)", ex_zh:"เขาหล่อมาก"},
+        {cat:"ทั่วไป", th:"สนุก", zr:"Sa-Nòok", zm:"有趣/好玩", q_zh:"วันนี้____มาก (好玩)", ex_zh:"เที่ยวให้สนุกนะ"},
+        {cat:"ทั่วไป", th:"สบายดี", zr:"Sa-Baai-Dee", zm:"舒服/好", q_zh:"คุณ____ไหม? (好)", ex_zh:"สบายดีครับ"},
+        {cat:"อาหาร", th:"หมู", zr:"Mǒo", zm:"猪肉", q_zh:"กิน____ (猪肉)", ex_zh:"กะเพราหมูสับ"},
+        {cat:"อาหาร", th:"ปลา", zr:"Plaa", zm:"鱼", q_zh:"นึ่ง____ (鱼)", ex_zh:"ปลานึ่งซีอิ๊ว"},
+        {cat:"อาหาร", th:"ผัก", zr:"Pàk", zm:"蔬菜", q_zh:"กิน____เยอะๆ (菜)", ex_zh:"ผักบุ้งไฟแดง"},
+        {cat:"อาหาร", th:"เกลือ", zr:"Glua", zm:"盐", q_zh:"ใส่____ (盐)", ex_zh:"รสเค็มเพราะเกลือ"},
+        {cat:"อาหาร", th:"น้ำตาล", zr:"Nám-Taan", zm:"糖", q_zh:"เติม____ (糖)", ex_zh:"น้ำตาลทรายแดง"},
+        {cat:"อาหาร", th:"นม", zr:"Nom", zm:"牛奶", q_zh:"ดื่ม____ (奶)", ex_zh:"นมจืด"},
+        {cat:"อาหาร", th:"ขนม", zr:"Ka-Nǒm", zm:"零食", q_zh:"ซื้อ____ (零食)", ex_zh:"ขนมไทย"},
+        {cat:"อาหาร", th:"เปรี้ยว", zr:"Prîaw", zm:"酸", q_zh:"รสชาติ____ (酸)", ex_zh:"มะนาวเปรี้ยว"},
+        {cat:"อาหาร", th:"เค็ม", zr:"Kem", zm:"咸", q_zh:"____เกินไป (咸)", ex_zh:"น้ำปลาเค็ม"},
+        {cat:"อาหาร", th:"จืด", zr:"Jèut", zm:"清淡", q_zh:"แกง____ (淡)", ex_zh:"แกงจืด"},
+        {cat:"ทั่วไป", th:"น้ำ", zr:"Nám", zm:"水", q_zh:"ดื่ม____ (水)", ex_zh:"น้ำเย็น"},
+        {cat:"ทั่วไป", th:"ไฟ", zr:"Fai", zm:"火/灯", q_zh:"ปิด____ (灯)", ex_zh:"ปิดไฟด้วย"},
+        {cat:"ทั่วไป", th:"รถ", zr:"Rót", zm:"车", q_zh:"ขึ้น____ (车)", ex_zh:"รถติดมาก"},
+        {cat:"ทั่วไป", th:"เดิน", zr:"Dern", zm:"走", q_zh:"____ไป (走)", ex_zh:"เดินไปทำงาน"},
+        {cat:"ทั่วไป", th:"นอน", zr:"Non", zm:"睡觉", q_zh:"ไป____ (睡)", ex_zh:"นอนหลับฝันดี"},
+        {cat:"ทั่วไป", th:"นั่ง", zr:"Nâng", zm:"坐", q_zh:"เชิญ____ (坐)", ex_zh:"นั่งรอที่นี่"},
+        {cat:"ทั่วไป", th:"ยืน", zr:"Yeun", zm:"站", q_zh:"อย่า____ (站)", ex_zh:"ยืนรอนานแล้ว"},
+        {cat:"ทั่วไป", th:"พูด", zr:"Pôot", zm:"说", q_zh:"____ช้าๆ (说)", ex_zh:"พูดภาษาไทย"},
+        {cat:"ทั่วไป", th:"ฟัง", zr:"Fang", zm:"听", q_zh:"____เพลง (听)", ex_zh:"ฟังเพลงเพราะๆ"},
+        {cat:"ทั่วไป", th:"อ่าน", zr:"Àan", zm:"读", q_zh:"____หนังสือ (读)", ex_zh:"อ่านหนังสือสอบ"},
+        {cat:"ทั่วไป", th:"เขียน", zr:"Kǐan", zm:"写", q_zh:"____ชื่อ (写)", ex_zh:"เขียนชื่อตัวเอง"},
+        {cat:"ทั่วไป", th:"ดู", zr:"Doo", zm:"看", q_zh:"____หนัง (看)", ex_zh:"ดูทีวี"},
+        {cat:"ทั่วไป", th:"เรียน", zr:"Rian", zm:"学习", q_zh:"____ภาษา (学)", ex_zh:"เรียนออนไลน์"},
+        {cat:"ทั่วไป", th:"ทำงาน", zr:"Tam-Ngaan", zm:"工作", q_zh:"ไป____ (工作)", ex_zh:"ทำงานหาเงิน"},
+        {cat:"ทั่วไป", th:"เล่น", zr:"Lên", zm:"玩", q_zh:"____เกม (玩)", ex_zh:"เล่นเกม"},
+        {cat:"ทั่วไป", th:"สีแดง", zr:"Sǐe-Daeng", zm:"红色", q_zh:"ชอบ____ (红色)", ex_zh:"เสื้อสีแดง"},
+        {cat:"ทั่วไป", th:"สีฟ้า", zr:"Sǐe-Fáa", zm:"蓝色", q_zh:"ท้องฟ้า____ (蓝色)", ex_zh:"ท้องฟ้าสีฟ้า"},
+        {cat:"ทั่วไป", th:"วันนี้", zr:"Wan-Née", zm:"今天", q_zh:"____ (今天) วันอะไร?", ex_zh:"วันนี้อากาศดี"},
+        {cat:"ทั่วไป", th:"พรุ่งนี้", zr:"Prûng-Née", zm:"明天", q_zh:"เจอกัน____ (明天)", ex_zh:"พรุ่งนี้ทำงาน"},
+        {cat:"ทั่วไป", th:"เมื่อวาน", zr:"Mêua-Waan", zm:"昨天", q_zh:"____ (昨天) ฝนตก", ex_zh:"เมื่อวานฝนตก"},
+        {cat:"ทั่วไป", th:"เวลา", zr:"Way-Laa", zm:"时间", q_zh:"ไม่มี____ (时间)", ex_zh:"รอเป็นเวลานาน"},
+        {cat:"ทั่วไป", th:"ชั่วโมง", zr:"Chûa-Mong", zm:"小时", q_zh:"หนึ่ง____ (小时)", ex_zh:"อีกหนึ่งชั่วโมง"},
+        {cat:"ทั่วไป", th:"นาที", zr:"Na-Tee", zm:"分钟", q_zh:"รอห้า____ (分钟)", ex_zh:"สิบนาที"},
+        {cat:"ทั่วไป", th:"เช้า", zr:"Cháo", zm:"早上", q_zh:"ตอน____ (早上)", ex_zh:"ตื่นเช้า"},
+        {cat:"ทั่วไป", th:"เย็น", zr:"Yen", zm:"傍晚/凉", q_zh:"ตอน____ (傍晚)", ex_zh:"ตอนเย็นเจอกัน"},
+        {cat:"ความรัก", th:"ที่รัก", zr:"Têe-Rák", zm:"親愛的/寶貝", q_zh:"____กินข้าวกัน (親愛的)", ex_zh:"ที่รัก กินข้าวหรือยัง?"},
+        {cat:"ความรัก", th:"ดีกันนะ", zr:"Dee-Gun-Na", zm:"和好吧", q_zh:"____ (和好吧)", ex_zh:"เรามาดีกันนะ"},
+        {cat:"ความรัก", th:"ใจดี", zr:"Jai-Dee", zm:"善良/心好", q_zh:"คุณ____มาก (心好)", ex_zh:"เธอเป็นคนใจดีมาก"},
+        {cat:"ความรัก", th:"ภูมิใจในตัวเธอ", zr:"Poom-Jai-Nai-Tua-Ter", zm:"為你驕傲", q_zh:"ฉัน____ (為你驕傲)", ex_zh:"ฉันภูมิใจในตัวเธอที่สุด"},
+        {cat:"ความรัก", th:"รอยยิ้ม", zr:"Roy-Yim", zm:"微笑", q_zh:"ชอบ____ (微笑)", ex_zh:"รอยยิ้มของเธอน่ารัก"},
+        {cat:"ความรัก", th:"ความสุข", zr:"Kwaam-Sòok", zm:"幸福/快樂", q_zh:"มี____นะ (幸福)", ex_zh:"ขอให้มีความสุขมากๆ"},
+        {cat:"ความรัก", th:"คิดถึงที่สุด", zr:"Kít-Teung-Têe-Sùt", zm:"最想念你", q_zh:"____ (最想念你)", ex_zh:"คิดถึงที่สุดในโลก"},
+        {cat:"ความรัก", th:"หึง", zr:"Hǔeng", zm:"吃醋", q_zh:"คุณ____ฉันเหรอ? (吃醋)", ex_zh:"อย่าหึงเลยนะ"},
+        {cat:"ความรัก", th:"จริงใจ", zr:"Jing-Jai", zm:"真心", q_zh:"ฉัน____ (真心)", ex_zh:"รักเธอด้วยความจริงใจ"},
+        {cat:"ความรัก", th:"แต่งงาน", zr:"Tàeng-Ngaan", zm:"結婚", q_zh:"____กันนะ (結婚)", ex_zh:"เรามาแต่งงานกันนะ"},
+        {cat:"อาหาร", th:"หิวจัง", zr:"Hǐw-Jung", zm:"好餓啊", q_zh:"____ (好餓)", ex_zh:"หิวจังเลย"},
+        {cat:"อาหาร", th:"อิ่มแล้ว", zr:"Ìm-Láew", zm:"飽了", q_zh:"ฉัน____ (飽了)", ex_zh:"กินไม่ไหวแล้ว อิ่มแล้ว"},
+        {cat:"อาหาร", th:"น้ำแข็งเปล่า", zr:"Nám-Kǎeng-Plào", zm:"冰塊", q_zh:"ขอ____ (冰塊)", ex_zh:"ขอน้ำแข็งเปล่าแก้วหนึ่ง"},
+        {cat:"อาหาร", th:"ไม่เผ็ด", zr:"Mâi-Pèt", zm:"不辣", q_zh:"เอาแบบ____ (不辣)", ex_zh:"สั่งส้มตำไม่เผ็ด"},
+        {cat:"อาหาร", th:"เป็ด", zr:"Pèt", zm:"鴨", q_zh:"____ย่าง (鴨)", ex_zh:"เป็ดย่างอร่อยมาก"},
+        {cat:"อาหาร", th:"เนื้อวัว", zr:"Néua-Wua", zm:"牛肉", q_zh:"ไม่กิน____ (牛肉)", ex_zh:"ก๋วยเตี๋ยวเนื้อวัว"},
+        {cat:"อาหาร", th:"ข้าวเหนียว", zr:"Kâo-Nǐaw", zm:"糯米", q_zh:"____มะม่วง (糯米)", ex_zh:"ข้าวเหนียวมะม่วง"},
+        {cat:"อาหาร", th:"ไข่เจียว", zr:"Kài-Jiaw", zm:"煎蛋", q_zh:"ข้าว____ (煎蛋)", ex_zh:"ข้าวไข่เจียว"},
+        {cat:"อาหาร", th:"น้ำผลไม้", zr:"Nám-Pǒn-La-Máai", zm:"果汁", q_zh:"ดื่ม____ (果汁)", ex_zh:"น้ำผลไม้ปั่น"},
+        {cat:"อาหาร", th:"ของหวาน", zr:"Kǒng-Wǎan", zm:"甜點", q_zh:"กิน____ (甜點)", ex_zh:"กินของคาวแล้วต้องกินของหวาน"},
+        {cat:"ทั่วไป", th:"ช่วยด้วย", zr:"Chûay-Duay", zm:"救命/幫幫我", q_zh:"____! (救命)", ex_zh:"ช่วยด้วยครับ มีคนเป็นลม"},
+        {cat:"ทั่วไป", th:"ระวังนะ", zr:"Ra-Wang-Na", zm:"小心點", q_zh:"____ (小心)", ex_zh:"ระวังนะพื้นลื่น"},
+        {cat:"ทั่วไป", th:"ทางนี้", zr:"Taang-Née", zm:"這邊", q_zh:"มา____ (這邊)", ex_zh:"มาทางนี้เลย"},
+        {cat:"ทั่วไป", th:"เข้าใจไหม", zr:"Kâo-Jai-Mǎi", zm:"懂了嗎？", q_zh:"คุณ____? (懂嗎)", ex_zh:"พูดแบบนี้เข้าใจไหม"},
+        {cat:"ทั่วไป", th:"เหนื่อยไหม", zr:"Nèua-Mǎi", zm:"累嗎？", q_zh:"วันนี้____? (累嗎)", ex_zh:"กลับจากทำงาน เหนื่อยไหมคะ"},
+        {cat:"ทั่วไป", th:"สู้ๆ นะ", zr:"Sôo-Sôo-Na", zm:"加油哦", q_zh:"____ (加油)", ex_zh:"สู้ๆ นะ เป็นกำลังใจให้"},
+        {cat:"ทั่วไป", th:"ไม่เป็นไร", zr:"Mâi-Pen-Rai", zm:"沒關係/不用謝", q_zh:"____ (沒關係)", ex_zh:"ไม่เป็นไร ฉันโอเค"},
+        {cat:"ทั่วไป", th:"สุดยอด", zr:"Sùt-Yôot", zm:"棒極了", q_zh:"มัน____มาก (棒極了)", ex_zh:"อาหารจานนี้สุดยอดเลย"},
+        {cat:"ทั่วไป", th:"แน่นอน", zr:"Naé-Non", zm:"當然", q_zh:"ได้เลย ____ (當然)", ex_zh:"เรื่องนี้แน่นอนอยู่แล้ว"},
+        {cat:"ทั่วไป", th:"โชคดีนะ", zr:"Chôke-Dee-Na", zm:"祝你好運", q_zh:"ขอให้____ (祝好運)", ex_zh:"ไปเที่ยวให้สนุกนะ โชคดีนะ"}
+    ];
+
+    let currentVocab = [...allVocab];
+    let index = 0;
+    let currentMode = 'flashcard';
+    let canvas, ctx, drawing = false;
+
+    function initCanvas() {
+        canvas = document.getElementById('paintCanvas');
+        if (!canvas) return;
+        ctx = canvas.getContext('2d');
+        const container = document.getElementById('trace-container');
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#ff7675';
+
+        const start = (e) => { drawing = true; draw(e); };
+        const end = () => { drawing = false; ctx.beginPath(); };
+        const draw = (e) => {
+            if (!drawing) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches ? e.touches[0] : e;
+            ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        };
+
+        canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', end);
+        canvas.addEventListener('touchstart', start); canvas.addEventListener('touchmove', draw); canvas.addEventListener('touchend', end);
+    }
+
+    function updateCard() {
+        const item = currentVocab[index];
+        if (!item) return;
+        document.getElementById('card').classList.remove('is-flipped');
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('userInput').value = "";
+        
+        if (currentMode === 'flashcard') {
+            document.getElementById('th-word').innerText = item.th;
+            document.getElementById('zh-read').innerText = "Pinyin: " + item.zr;
+        } else if (currentMode === 'dictation') {
+            document.getElementById('trace-text').innerText = item.th;
+            clearCanvas();
+        } else if (currentMode === 'quiz') {
+            document.getElementById('th-word').innerText = item.q_zh;
+            document.getElementById('zh-read').innerText = "Translate to Thai";
+        }
+        document.getElementById('zh-mean').innerText = item.zm;
+        document.getElementById('ex-zh').innerText = item.ex_zh;
+        document.getElementById('progress').innerText = (index + 1) + " / " + currentVocab.length;
+    }
+
+    function changeMode() {
+        currentMode = document.getElementById('modeSelect').value;
+        const isTrace = (currentMode === 'dictation');
+        document.getElementById('card-area').style.display = isTrace ? 'none' : 'block';
+        document.getElementById('trace-container').style.display = isTrace ? 'block' : 'none';
+        document.getElementById('clear-area').style.display = isTrace ? 'block' : 'none';
+        document.getElementById('input-area').style.display = (currentMode === 'quiz') ? 'block' : 'none';
+        if (isTrace) setTimeout(initCanvas, 100);
+        updateCard();
+    }
+
+    function checkAnswer() {
+        if (document.getElementById('userInput').value.trim() === currentVocab[index].th) {
+            document.getElementById('feedback').innerText = "✅ Correct!";
+            document.getElementById('feedback').style.color = "green";
+        } else {
+            document.getElementById('feedback').innerText = "❌ Try again!";
+            document.getElementById('feedback').style.color = "red";
+        }
+    }
+
+    function flipCard() { if(currentMode === 'flashcard') document.getElementById('card').classList.toggle('is-flipped'); }
+    function nextCard() { index = (index + 1) % currentVocab.length; updateCard(); }
+    function prevCard() { index = (index - 1 + currentVocab.length) % currentVocab.length; updateCard(); }
+    function clearCanvas() { if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    
+    function filterCategory() {
+        const cat = document.getElementById('categorySelect').value;
+        currentVocab = (cat === 'all') ? [...allVocab] : allVocab.filter(function(i) { return i.cat === cat; });
+        index = 0;
+        updateCard();
+    }
+
+    function speak(event) {
+        event.stopPropagation();
+        const msg = new SpeechSynthesisUtterance(currentVocab[index].th);
+        msg.lang = 'th-TH';
+        msg.rate = 0.7;
+        window.speechSynthesis.speak(msg);
+    }
+
+    updateCard();
+</script>
+</body>
+</html>
